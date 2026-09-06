@@ -26,6 +26,7 @@ BASE_URL = os.getenv("VOICERX_BASE_URL", "http://localhost:8000")
 
 
 def _get_conn() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         """
