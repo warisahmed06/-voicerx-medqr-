@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>VoiceRx & MedQR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#020617" />
+<style>
+  :root {
+    --sky: #0ea5e9; --sky-dark: #0284c7; --sky-light: #38bdf8;
+    --emerald: #10b981; --emerald-dark: #059669;
+    --amber: #f59e0b; --orange: #f97316; --indigo: #6366f1; --rose: #f43f5e;
+    --slate-950: #020617; --slate-900: #0f172a; --slate-800: #1e293b;
+    --slate-700: #334155; --slate-500: #64748b; --slate-400: #94a3b8; --slate-300: #cbd5e1;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--slate-950); color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--slate-900); }
+  ::-webkit-scrollbar-thumb { background: var(--slate-700); border-radius: 3px; }
+
+  .glow { box-shadow: 0 0 20px rgba(14, 165, 233, 0.35); }
+
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .float-anim { animation: float 3s ease-in-out infinite; }
+
+  @keyframes scanLine { 0% { top: 0%; } 100% { top: 100%; } }
+  .scan-line { animation: scanLine 1.6s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.8s linear infinite; }
+
+  @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* Header */
+  header.top {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--slate-800);
+  }
+  .top-inner {
+    max-width: 760px; margin: 0 auto; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-badge {
+    width: 36px; height: 36px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--sky), var(--emerald));
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .brand h1 { font-size: 0.98rem; font-weight: 700; margin: 0; line-height: 1.1; }
+  .brand p { font-size: 0.72rem; color: var(--slate-400); margin: 2px 0 0; }
+
+  nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.tabs button {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 10px; border: none;
+    background: transparent; color: var(--slate-400);
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  nav.tabs button:hover { color: #fff; background: var(--slate-800); }
+  nav.tabs button.active { background: var(--sky-dark); color: #fff; }
+
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 70px; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Hero */
+  .hero {
+    position: relative; overflow: hidden; border-radius: 20px;
+    background: linear-gradient(135deg, rgba(12,74,110,0.5), rgba(6,78,59,0.35));
+    border: 1px solid var(--slate-700); padding: 22px; margin-bottom: 20px;
+  }
+  .hero .eyebrows { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .eyebrow {
+    font-size: 0.72rem; font-weight: 700; padding: 4px 11px; border-radius: 999px;
+    border: 1px solid;
+  }
+  .eyebrow.sky { background: rgba(14,165,233,0.15); color: var(--sky-light); border-color: rgba(14,165,233,0.35); }
+  .eyebrow.emerald { background: rgba(16,185,129,0.15); color: #6ee7b7; border-color: rgba(16,185,129,0.35); }
+  .hero h2 { font-size: 1.4rem; font-weight: 800; margin: 0 0 6px; }
+  .hero p { color: var(--slate-400); font-size: 0.86rem; margin: 0; max-width: 46ch; }
+  .hero-float { position: absolute; right: 18px; top: 14px; font-size: 2.2rem; opacity: 0.9; }
+
+  /* Cards */
+  .card {
+    background: rgba(15,23,42,0.6); border: 1px solid rgba(51,65,85,0.6);
+    border-radius: 16px; padding: 16px; margin-bottom: 14px;
+  }
+  .card h3 { font-size: 0.86rem; font-weight: 700; color: var(--slate-300); margin: 0 0 10px; }
+
+  input[type=text] {
+    width: 100%; background: rgba(30,41,59,0.6); border: 1px solid var(--slate-700);
+    color: #fff; font-size: 0.88rem; padding: 10px 12px; border-radius: 10px;
+    margin-bottom: 8px; outline: none; transition: border-color 0.15s ease;
+  }
+  input[type=text]::placeholder { color: var(--slate-500); }
+  input[type=text]:focus { border-color: var(--sky); }
+
+  /* Language pills */
+  .lang-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .lang-btn {
+    background: rgba(30,41,59,0.6); border: 1px solid var(--slate-700); color: var(--slate-400);
+    border-radius: 10px; padding: 8px 4px; font-size: 0.76rem; font-weight: 600;
+    text-align: center; cursor: pointer; transition: all 0.15s ease;
+  }
+  .lang-btn .flag { font-size: 1.05rem; margin-bottom: 2px; }
+  .lang-btn:hover { border-color: var(--slate-500); color: #fff; }
+  .lang-btn.active { background: var(--sky-dark); border-color: var(--sky); color: #fff; }
+
+  /* Dropzone */
+  .dropzone {
+    border: 2px dashed var(--slate-700); border-radius: 16px; padding: 30px 16px;
+    text-align: center; cursor: pointer; background: rgba(15,23,42,0.4);
+    transition: all 0.15s ease;
+  }
+  .dropzone:hover { border-color: var(--slate-500); }
+  .dropzone.dragging { border-color: var(--sky); background: rgba(14,165,233,0.08); }
+  .dropzone input { display: none; }
+  .dropzone .big { font-size: 2.2rem; margin-bottom: 8px; }
+  .dropzone .main-txt { font-size: 0.88rem; font-weight: 600; color: var(--slate-300); }
+  .dropzone .sub-txt { font-size: 0.76rem; color: var(--slate-500); margin-top: 4px; }
+  .preview-wrap { position: relative; }
+  .preview-wrap img { width: 100%; max-height: 200px; object-fit: contain; border-radius: 12px; }
+  .scan-overlay { position: absolute; inset: 0; border-radius: 12px; overflow: hidden; pointer-events: none; }
+  .scan-overlay .line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--sky-light), transparent);
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%; padding: 13px 18px; border-radius: 12px; border: none;
+    font-size: 0.92rem; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.15s ease;
+  }
+  .btn-primary { background: linear-gradient(90deg, var(--sky-dark), var(--emerald-dark)); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-primary:disabled { background: var(--slate-700); color: var(--slate-500); cursor: not-allowed; filter: none; }
+  .btn-ghost { background: var(--slate-800); color: #fff; border: 1px solid var(--slate-700); }
+
+  /* Medicine cards */
+  .med-card {
+    background: rgba(30,41,59,0.6); border: 1px solid rgba(51,65,85,0.5);
+    border-radius: 14px; padding: 14px; margin-bottom: 10px; transition: all 0.15s ease;
+  }
+  .med-card:hover { border-color: rgba(14,165,233,0.5); transform: translateY(-1px); }
+  .med-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .med-left { display: flex; align-items: center; gap: 10px; }
+  .med-avatar {
+    width: 34px; height: 34px; border-radius: 999px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--sky), var(--emerald));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.82rem; font-weight: 800;
+  }
+  .med-name { font-weight: 700; font-size: 0.92rem; }
+  .med-dosage { color: var(--sky-light); font-size: 0.76rem; font-weight: 600; }
+  .med-meta { color: var(--slate-400); font-size: 0.78rem; margin-top: 8px; }
+  .timing-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .timing-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+    border: 1px solid;
+  }
+
+  /* Result box (barcode / pill / voice) */
+  .result-box {
+    background: rgba(15,23,42,0.7); border: 1px solid var(--slate-700);
+    border-radius: 12px; padding: 12px 14px; font-size: 0.85rem;
+    white-space: pre-wrap; margin-top: 10px; color: var(--slate-300);
+  }
+  .alertbox {
+    background: rgba(244,63,94,0.1); color: #fda4af; border: 1px solid rgba(244,63,94,0.35);
+    padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; margin-top: 10px;
+  }
+
+  select {
+    width: 100%; background: rgba(30,41,59,0.6); border: 1px solid var(--slate-700);
+    color: #fff; font-size: 0.88rem; padding: 10px 12px; border-radius: 10px; margin-bottom: 10px;
+  }
+  audio { width: 100%; margin-top: 6px; border-radius: 999px; }
+
+  .qr-container {
+    background: #fff; border-radius: 14px; padding: 14px; display: inline-block;
+  }
+  .qr-container img { display: block; width: 150px; height: 150px; }
+
+  .hint { font-size: 0.76rem; color: var(--slate-500); margin: -2px 0 12px; }
+
+  /* Toast */
+  #toast {
+    position: fixed; top: 16px; right: 16px; z-index: 60; max-width: 320px;
+  }
+  .toast-item {
+    background: var(--slate-900); border: 1px solid var(--slate-700); color: #fff;
+    padding: 12px 14px; border-radius: 12px; font-size: 0.85rem; margin-bottom: 8px;
+    animation: slideIn 0.25s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="brand-badge">💊</div>
+      <div>
+        <h1>VoiceRx & MedQR</h1>
+        <p>AI Prescription Reader</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="active" data-tab="scan" onclick="showSection('scan', this)">🔍 <span>Scan</span></button>
+      <button data-tab="barcode" onclick="showSection('barcode', this)">🔖 <span>Barcode</span></button>
+      <button data-tab="pill" onclick="showSection('pill', this)">💊 <span>Pill ID</span></button>
+      <button data-tab="voice" onclick="showSection('voice', this)">🎙️ <span>Voice</span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- SCAN PRESCRIPTION -->
+  <section id="scan" class="section active">
+    <div class="hero">
+      <div class="eyebrows">
+        <span class="eyebrow sky">AI-Powered</span>
+        <span class="eyebrow emerald">Multilingual</span>
+      </div>
+      <h2>Prescription Intelligence</h2>
+      <p>Upload any handwritten or printed prescription. VoiceRx extracts medicines, speaks the instructions in your language, and creates a shareable QR code instantly.</p>
+      <div class="hero-float float-anim">🏥</div>
+    </div>
+
+    <div class="card">
+      <h3>Patient Information</h3>
+      <input type="text" id="patientNote" placeholder="Optional note (e.g. patient name)" />
+    </div>
+
+    <div class="card">
+      <h3>🌐 Voice Language</h3>
+      <div class="lang-grid" id="langGrid"></div>
+    </div>
+
+    <div class="card">
+      <h3>Upload prescription</h3>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('rxImage').click()">
+        <div id="dropzoneContent">
+          <div class="big">📸</div>
+          <div class="main-txt">Drop prescription here</div>
+          <div class="sub-txt">or tap to browse / take a photo</div>
+        </div>
+        <input type="file" id="rxImage" accept="image/*" capture="environment" onchange="onFileChosen(this.files[0])" />
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="scanBtn" onclick="scanPrescription()" disabled>
+      <span id="scanBtnText">📷 Choose an image first</span>
+    </button>
+
+    <div id="resultsCard" style="display:none; margin-top:18px;">
+      <h3 style="font-size:1rem; margin: 4px 0 10px;">Parsed prescription</h3>
+      <div id="medList"></div>
+
+      <h3 style="font-size:1rem; margin: 18px 0 10px;">Listen to instructions</h3>
+      <audio id="audioPlayer" controls></audio>
+      <div id="scriptFallback" class="alertbox" style="display:none;"></div>
+
+      <h3 style="font-size:1rem; margin: 18px 0 10px;">Digital QR Vault</h3>
+      <p class="hint" style="margin-bottom:10px;">Scan this at any pharmacy to retrieve full instructions instantly.</p>
+      <div class="qr-container"><img id="qrImg" /></div>
+    </div>
+  </section>
+
+  <!-- BARCODE FALLBACK -->
+  <section id="barcode" class="section">
+    <div class="card">
+      <h3>🔖 Barcode lookup</h3>
+      <p class="hint">For strips with a standard barcode but no VoiceRx QR code.</p>
+      <input type="text" id="barcodeInput" placeholder="e.g. 8901234567890" />
+      <button class="btn btn-ghost" onclick="lookupBarcode()">Look up</button>
+      <div id="barcodeResult" class="result-box" style="display:none;"></div>
+    </div>
+    <p class="hint">Try sample barcodes: 8901234567890, 8901234567891, 8901234567892, 8901234567893</p>
+  </section>
+
+  <!-- PILL IDENTIFIER FALLBACK -->
+  <section id="pill" class="section">
+    <div class="card">
+      <h3>💊 Pill identifier</h3>
+      <p class="hint">For loose pills with no packaging — describe shape, color, and any imprint.</p>
+      <select id="pillShape">
+        <option value="round">Round</option>
+        <option value="oval">Oval</option>
+        <option value="capsule">Capsule</option>
+        <option value="oblong">Oblong</option>
+      </select>
+      <select id="pillColor">
+        <option value="white">White</option>
+        <option value="yellow">Yellow</option>
+        <option value="pink">Pink</option>
+        <option value="red-white">Red-White</option>
+      </select>
+      <input type="text" id="pillImprint" placeholder="Imprint text (optional, e.g. P500)" />
+      <button class="btn btn-ghost" onclick="identifyPill()">Identify</button>
+      <div id="pillResult" class="result-box" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- VOICE REMINDER FALLBACK -->
+  <section id="voice" class="section">
+    <div class="card">
+      <h3>🎙️ Manual voice input reminder</h3>
+      <p class="hint">Type what you'd say out loud (in a real app this comes from on-device speech-to-text).</p>
+      <input type="text" id="voiceTranscript" placeholder="e.g. Remind me to take my BP tablet every morning and night" />
+      <button class="btn btn-ghost" onclick="setVoiceReminder()">Set Reminder</button>
+      <div id="voiceResult" class="result-box" style="display:none;"></div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// Auto-detects the backend URL — same origin the page was loaded from.
+const API_BASE = window.location.origin;
+let currentRecordId = null;
+let selectedLanguage = "en";
+let chosenFile = null;
+
+const LANGUAGES = [
+  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "hi", label: "हिन्दी", flag: "🇮🇳" },
+  { code: "te", label: "తెలుగు", flag: "🏳️" },
+  { code: "ta", label: "தமிழ்", flag: "🏳️" },
+  { code: "bn", label: "বাংলা", flag: "🇧🇩" },
+  { code: "mr", label: "मराठी", flag: "🏳️" },
+];
+
+const TIMING_STYLES = {
+  "☀️": { label: "Morning",     color: "background:rgba(245,158,11,0.15); color:#fcd34d; border-color:rgba(245,158,11,0.35);" },
+  "🌤️": { label: "Afternoon",   color: "background:rgba(249,115,22,0.15); color:#fdba74; border-color:rgba(249,115,22,0.35);" },
+  "🌆": { label: "Evening",     color: "background:rgba(99,102,241,0.15); color:#a5b4fc; border-color:rgba(99,102,241,0.35);" },
+  "🌙": { label: "Night",       color: "background:rgba(99,102,241,0.15); color:#a5b4fc; border-color:rgba(99,102,241,0.35);" },
+  "🍽️": { label: "After food",  color: "background:rgba(16,185,129,0.15); color:#6ee7b7; border-color:rgba(16,185,129,0.35);" },
+  "🕒": { label: "As needed",   color: "background:rgba(148,163,184,0.15); color:#cbd5e1; border-color:rgba(148,163,184,0.35);" },
+};
+
+function renderLangGrid() {
+  const grid = document.getElementById("langGrid");
+  grid.innerHTML = "";
+  LANGUAGES.forEach((lang) => {
+    const btn = document.createElement("div");
+    btn.className = "lang-btn" + (lang.code === selectedLanguage ? " active" : "");
+    btn.innerHTML = `<div class="flag">${lang.flag}</div><div>${lang.label}</div>`;
+    btn.onclick = () => {
+      selectedLanguage = lang.code;
+      renderLangGrid();
+      if (currentRecordId) loadAudio();
+    };
+    grid.appendChild(btn);
+  });
+}
+renderLangGrid();
+
+function showToast(msg, isError) {
+  const toast = document.createElement("div");
+  toast.className = "toast-item";
+  toast.style.borderColor = isError ? "rgba(244,63,94,0.5)" : "rgba(16,185,129,0.5)";
+  toast.textContent = msg;
+  document.getElementById("toast").appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function showSection(id, btn) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+function onFileChosen(file) {
+  if (!file) return;
+  chosenFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById("dropzoneContent").innerHTML = `
+      <div class="preview-wrap">
+        <img src="${e.target.result}" />
+      </div>
+      <div class="sub-txt" style="margin-top:8px;">Tap to change image</div>
+    `;
+  };
+  reader.readAsDataURL(file);
+  document.getElementById("scanBtn").disabled = false;
+  document.getElementById("scanBtnText").textContent = "🔍 Scan & Parse";
+}
+
+const dropzone = document.getElementById("dropzone");
+dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragging"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragging"));
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.classList.remove("dragging");
+  const file = e.dataTransfer.files?.[0];
+  if (file) onFileChosen(file);
+});
+
+async function scanPrescription() {
+  if (!chosenFile) { showToast("Please choose a prescription image first.", true); return; }
+
+  const btn = document.getElementById("scanBtn");
+  const btnText = document.getElementById("scanBtnText");
+  btn.disabled = true;
+  btnText.innerHTML = `<span class="spin" style="display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; border-radius:50%;"></span> Reading prescription…`;
+
+  const formData = new FormData();
+  formData.append("image", chosenFile);
+  const note = document.getElementById("patientNote").value;
+  if (note) formData.append("patient_note", note);
+
+  try {
+    const res = await fetch(`${API_BASE}/prescription/scan`, { method: "POST", body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    currentRecordId = data.prescription.id;
+    renderPrescription(data.prescription);
+    document.getElementById("qrImg").src = `${API_BASE}${data.qr_code_url}`;
+    document.getElementById("resultsCard").style.display = "block";
+    document.getElementById("resultsCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    loadAudio();
+    showToast("Prescription parsed successfully.");
+  } catch (err) {
+    showToast("Scan failed — is the backend running?", true);
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = "🔍 Scan & Parse";
+  }
+}
+
+function renderPrescription(rx) {
+  const container = document.getElementById("medList");
+  container.innerHTML = "";
+  if (rx.medicines.length === 0) {
+    container.innerHTML = `<div class="alertbox">No medicines detected. OCR confidence: ${(rx.ocr_confidence*100).toFixed(0)}%. Handwriting may be too unclear to parse — try the Barcode or Pill ID tab instead.</div>`;
+    return;
+  }
+  rx.medicines.forEach((m, i) => {
+    const badges = (m.icons || []).map(icon => {
+      const style = TIMING_STYLES[icon] || { label: "", color: "background:rgba(148,163,184,0.15); color:#cbd5e1; border-color:rgba(148,163,184,0.35);" };
+      return `<span class="timing-pill" style="${style.color}">${icon} ${style.label}</span>`;
+    }).join("");
+
+    const div = document.createElement("div");
+    div.className = "med-card";
+    div.innerHTML = `
+      <div class="med-top">
+        <div class="med-left">
+          <div class="med-avatar">${i + 1}</div>
+          <div>
+            <div class="med-name">${m.name}</div>
+            ${m.dosage ? `<div class="med-dosage">${m.dosage}</div>` : ""}
+          </div>
+        </div>
+      </div>
+      <div class="med-meta">${m.frequency_label}${m.duration ? " · for " + m.duration : ""}${m.food_instruction ? " · " + m.food_instruction : ""}</div>
+      <div class="timing-row">${badges}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function loadAudio() {
+  if (!currentRecordId) return;
+  const player = document.getElementById("audioPlayer");
+  const fallback = document.getElementById("scriptFallback");
+  fallback.style.display = "none";
+  player.removeAttribute("src");
+
+  try {
+    const audioRes = await fetch(`${API_BASE}/prescription/${currentRecordId}/audio?lang=${selectedLanguage}`);
+    if (audioRes.ok) {
+      const blob = await audioRes.blob();
+      player.src = URL.createObjectURL(blob);
+    } else {
+      const detail = await audioRes.json().catch(() => ({}));
+      fallback.textContent = detail.detail || "Audio unavailable — TTS not configured in this environment.";
+      fallback.style.display = "block";
+    }
+  } catch {
+    fallback.textContent = "Could not reach the backend for audio.";
+    fallback.style.display = "block";
+  }
+}
+
+async function lookupBarcode() {
+  const barcode = document.getElementById("barcodeInput").value.trim();
+  const out = document.getElementById("barcodeResult");
+  out.style.display = "block";
+  if (!barcode) { out.textContent = "Enter a barcode number."; return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/medicine/barcode`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ barcode }),
+    });
+    const data = await res.json();
+    out.textContent = data.found
+      ? `${data.name}\nManufacturer: ${data.manufacturer}\nComposition: ${data.composition}\nStandard dosage: ${data.standard_dosage}`
+      : "No match found in database for this barcode.";
+  } catch {
+    out.textContent = "Could not reach the backend.";
+  }
+}
+
+async function identifyPill() {
+  const shape = document.getElementById("pillShape").value;
+  const color = document.getElementById("pillColor").value;
+  const imprint = document.getElementById("pillImprint").value;
+  const out = document.getElementById("pillResult");
+  out.style.display = "block";
+
+  try {
+    const res = await fetch(`${API_BASE}/medicine/pill-identify`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shape, color, imprint }),
+    });
+    const data = await res.json();
+    out.textContent = data.matches.length
+      ? data.matches.map(m => `${m.name} (${Math.round(m.confidence*100)}% match)\n  ${m.composition}`).join("\n\n")
+      : "No close matches found. Please consult a pharmacist.";
+  } catch {
+    out.textContent = "Could not reach the backend.";
+  }
+}
+
+async function setVoiceReminder() {
+  const transcript = document.getElementById("voiceTranscript").value.trim();
+  const out = document.getElementById("voiceResult");
+  out.style.display = "block";
+  if (!transcript) { out.textContent = "Type a phrase first."; return; }
+
+  try {
+    const res = await fetch(`${API_BASE}/reminder/voice`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript, lang: "en" }),
+    });
+    const data = await res.json();
+    out.textContent = data.message;
+  } catch {
+    out.textContent = "Could not reach the backend.";
+  }
+}
+</script>
+
+</body>
+</html>
